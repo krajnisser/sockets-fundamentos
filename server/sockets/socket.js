@@ -1,32 +1,52 @@
 const {io} = require('../server');
+const {TicketControl} = require('../classes/ticket-control');
+
+const ticketControl = new TicketControl();
+ticketControl.reiniciarConteo();
 
 io.on('connection', (client) => {
-    console.log('Usuario conectado');
 
-    client.emit('enviarMensaje', {
-        usuario: 'Administrador',
-        mensaje: 'Bienvenido a esta app'
+    client.on('siguienteTicket', (data, callback) => {
+
+        var nuevoTicket = ticketControl.siguienteTicket();
+
+        console.log(nuevoTicket);
+
+        callback(nuevoTicket);
+        
     });
 
-    client.on('disconnect', () => {
-        console.log('Usuario desconectado');
+    client.on('getUltimo', (data, callback) => {
+        
+        var ultimoTicket = ticketControl.getUltimoTicket();
+        callback(ultimoTicket);
+
     });
 
-    // Escuchar al cliente
-    client.on('enviarMensaje', (data, callback) => {
+    client.emit('estadoActual', {
+        actual: ticketControl.getUltimoTicket(),
+        ultimos4: ticketControl.getUltimos4()
+    });
+
+    client.on('atenderTicket', (data, callback) => {
+
         console.log(data);
 
-        client.broadcast.emit('enviarMensaje', data);
+        if(!data.escritorio){
+            return callback({
+                err: true,
+                message: 'El escritorio es necesario'
+            });
+        }
 
-        // if(mensaje.usuario){
-        //     callback({
-        //         resp: 'Todo salió bien'
-        //     });
-        // }else{
-        //     callback({
-        //         resp: 'TODO SALIO MAL!!!'
-        //     });
-        // }
+        let atenderTicket = ticketControl.atenderTicket(data.escritorio);
+        callback(atenderTicket);
+
+        // actualizar cambios en los ultimos 4 en la pantalla
+        client.broadcast.emit('estadoActual', {
+            actual: ticketControl.getUltimoTicket(),
+            ultimos4: ticketControl.getUltimos4()
+        });
 
     });
 
